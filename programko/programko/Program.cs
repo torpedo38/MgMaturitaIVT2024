@@ -1,127 +1,62 @@
-﻿
-//uloha 3
+﻿using System.Text.RegularExpressions;
 
-UInt64 x = 123;
-int ans = 0;
-while(x > 0)
+//uloha 4
+
+class Program
 {
-	if (x % 2 == 1)
-	{
-		ans++;
-	}
-	x >>= 1;
-}
-Console.WriteLine(ans);
-
-
-//uloha 1
-
-namespace EmailValidator
-{
-    public enum State
+    static void Main()
     {
-        Start,
-        LocalPart,
-        AtSymbol,
-        Domain,
-        DomainDot,
-        Error
+        string input = @"
+            Some text before
+            {START:block1}
+                Some text inside block1
+                {START:block2}
+                    Some text inside block2
+                {END:block2}
+                Some text inside block1
+            {END:block1}
+            Some text after
+        ";
+
+        try
+        {
+            ValidateDocumentStructure(input);
+            Console.WriteLine("Document structure is valid.");
+        }
+        catch
+        {
+            Console.WriteLine("Document structure is invalid");
+        }
     }
 
-    public class EmailStateMachine
+    static void ValidateDocumentStructure(string input)
     {
-        private State _currentState;
-        private bool _hasDomain;
+        var stack = new Stack<string>();
+        var regex = new Regex(@"\{(START|END):(\w+)\}");
+        var matches = regex.Matches(input);
 
-        public EmailStateMachine()
+        foreach (Match match in matches)
         {
-            _currentState = State.Start;
-        }
+            string type = match.Groups[1].Value;
+            string name = match.Groups[2].Value;
 
-        public bool Validate(string email)
-        {
-            _currentState = State.Start;
-            _hasDomain = false;
-
-            foreach (var ch in email)
+            if (type == "START")
             {
-                _currentState = NextState(_currentState, ch);
-                if (_currentState == State.Error)
+                stack.Push(name);
+            }
+            else if (type == "END")
+            {
+                if (stack.Count == 0 || stack.Peek() != name)
                 {
-                    return false;
+                    throw new InvalidOperationException("Document structure is invalid");
                 }
+                stack.Pop();
             }
-
-            return _currentState == State.Domain && _hasDomain;
         }
 
-        private State NextState(State currentState, char input)
+        if (stack.Count > 0)
         {
-            switch (currentState)
-            {
-                case State.Start:
-                    if (IsLetterOrDigit(input))
-                        return State.LocalPart;
-                    break;
-
-                case State.LocalPart:
-                    if (IsLetterOrDigit(input) || input == '.' || input == '_')
-                        return State.LocalPart;
-                    if (input == '@')
-                        return State.AtSymbol;
-                    break;
-
-                case State.AtSymbol:
-                    if (IsLetterOrDigit(input))
-                    {
-                        _hasDomain = true;
-                        return State.Domain;
-                    }
-                    break;
-
-                case State.Domain:
-                    if (IsLetterOrDigit(input))
-                        return State.Domain;
-                    if (input == '.')
-                        return State.DomainDot;
-                    break;
-
-                case State.DomainDot:
-                    if (IsLetterOrDigit(input))
-                        return State.Domain;
-                    break;
-            }
-
-            return State.Error;
-        }
-
-        private bool IsLetterOrDigit(char ch)
-        {
-            return char.IsLetterOrDigit(ch);
-        }
-    }
-
-    class Program
-    {
-        static void Main(string[] args)
-        {
-            var emailValidator = new EmailStateMachine();
-            string[] testEmails =
-            {
-                "user@example.com",
-                "user.name@example.com",
-                "user@com",
-                "user@.com",
-                "@example.com",
-                "user@exam_ple.com",
-                "user@domain.com"
-            };
-
-            foreach (var email in testEmails)
-            {
-                bool isValid = emailValidator.Validate(email);
-                Console.WriteLine($"Email: {email}, Valid: {isValid}");
-            }
+            throw new InvalidOperationException("Document structure is invalid");
         }
     }
 }
